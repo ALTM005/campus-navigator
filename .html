@@ -1,236 +1,599 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SearchMyCampus</title>
   <style>
-    body { font-family: 'Poppins', sans-serif; margin: 0; background-color: #f7f8fa; }
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      background-color: #043927; color: white; padding: 10px 20px; flex-wrap: wrap;
-      position: sticky; top: 0; z-index: 10;
+    :root{
+      --brand:#043927;
+      --brand-2:#00573f;
+      --bg:#f7f8fa;
+      --card:#ffffff;
+      --text:#1b1b1b;
+      --muted:#6b7280;
+      --ring:#94d3ac;
     }
-    .left-section { display: flex; align-items: center; gap: 10px; }
-    .left-section img { height: 60px; width: auto; border-radius: 5px; }
-    .left-section h1 { font-size: 1.8rem; margin: 0; color: white; white-space: nowrap; }
-    #search-bar { flex: 1; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
-    #searchInput {
-      width: 60%; min-width: 260px; padding: 10px 12px;
-      border: 2px solid #ccc; border-radius: 10px; font-size: 1rem; color: #222; background: #fff;
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Poppins',sans-serif;margin:0;background-color:var(--bg);color:var(--text)}
+    header{
+      display:flex;justify-content:space-between;align-items:center;gap:16px;
+      background-color:var(--brand);color:#fff;padding:10px 20px;flex-wrap:wrap;position:sticky;top:0;z-index:20
     }
-    #searchBtn {
-      padding: 10px 15px; background-color: #00573f; color: white; border: none;
-      border-radius: 8px; cursor: pointer; font-weight: bold;
+    .left-section{display:flex;align-items:center;gap:10px}
+    .left-section img{height:60px;width:auto;border-radius:5px}
+    .left-section h1{font-size:1.8rem;margin:0;color:#fff;white-space:nowrap}
+    #controls{flex:1;min-width:320px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}
+    #searchInput{
+      width:100%;padding:10px 12px;border:2px solid #d1d5db;border-radius:10px;font-size:1rem;background:#fff;color:#222;
+      outline:none
     }
-    #searchBtn:hover { background-color: #007a55; }
-    #map {
-      height: 520px; width: 90%; margin: 20px auto; border-radius: 15px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1); background: #eaeaea;
+    #searchInput:focus{border-color:var(--ring);box-shadow:0 0 0 4px rgba(17,179,94,.15)}
+    .btn{
+      padding:10px 14px;border:none;border-radius:8px;background:var(--brand-2);color:#fff;font-weight:600;cursor:pointer
     }
-    #info-box {
-      width: 80%; margin: 20px auto; background-color: #ffffff; border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1); padding: 20px;
+    .btn:hover{background:#007a55}
+    .btn.secondary{background:#1f2937}
+    .btn.secondary:hover{background:#374151}
+    #suggestions{
+      position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-top:6px;
+      box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;max-height:280px;overflow-y:auto;z-index:30;display:none
     }
-    #info-box h2 { color: #043927; margin-top: 0; }
+    #suggestions[aria-expanded="true"]{display:block}
+    .sugg-item{padding:10px 12px;cursor:pointer}
+    .sugg-item[aria-selected="true"], .sugg-item:hover{background:#f3f4f6}
+    .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+    .chip{background:#e5efe9;color:#0f5132;padding:6px 10px;border-radius:999px;font-size:.85rem;cursor:pointer}
+    #map{
+      height:520px;width:90%;margin:20px auto;border-radius:15px;background:#eaeaea;
+      box-shadow:0 0 10px rgba(0,0,0,.1)
+    }
+    #info-box{
+      width:90%;max-width:1100px;margin:20px auto;background:var(--card);border-radius:12px;
+      box-shadow:0 0 10px rgba(0,0,0,.1);padding:20px
+    }
+    #info-box h2{color:var(--brand);margin:0 0 10px}
+    #buildingInfo{margin:0 0 12px;color:var(--text)}
+    #resultsList{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+    .result{
+      border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;
+      background:#fff;cursor:pointer
+    }
+    .result:hover{background:#f9fafb}
+    .muted{color:var(--muted);font-size:.9rem}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+    /* --- Dept side panel --- */
+    #deptBackdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.25);
+      opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:39;
+    }
+    #deptBackdrop.open{ opacity:1; pointer-events:auto; }
+
+    #deptPanel{
+      position:fixed; top:0; right:-380px; height:100vh; width:360px;
+      background:#fff; box-shadow:-12px 0 32px rgba(0,0,0,.15);
+      transition:right .25s ease; z-index:40; display:flex; flex-direction:column;
+      border-left:1px solid #e5e7eb;
+    }
+    #deptPanel.open{ right:0; }
+    #deptPanel header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px; border-bottom:1px solid #e5e7eb; background:#f9fafb;
+    }
+    #deptPanel h3{ margin:0; font-size:1.05rem; }
+    #deptPanel .closeBtn{
+      border:none; background:#1f2937; color:#fff; border-radius:8px; padding:8px 10px; cursor:pointer;
+    }
+    #deptPanel .closeBtn:hover{ background:#374151; }
+    #deptPanel .content{ padding:12px 16px; overflow:auto; }
+
+    /* Panel list items (fallback / legacy) */
+    #deptPanel ul{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+    #deptPanel li{
+      border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; background:#fff;
+    }
+
+    /* --- New: grouped-by-floor styling --- */
+    #deptPanel .floor-group{ margin:12px 0 16px; }
+    #deptPanel .floor-title{ margin:6px 0 8px; font-weight:700; color:var(--brand); }
+    #deptPanel .floor-group ul{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
   </style>
 </head>
 <body>
   <header>
     <div class="left-section">
       <a href="https://www.csus.edu" target="_blank" rel="noopener">
-        <img src="sacstate_logo.jpeg" alt="Sac State Logo" />
+        <img src="sacstate_logo.jpeg" alt="Sac State logo"/>
       </a>
       <h1>SearchMyCampus</h1>
     </div>
 
-    <div id="search-bar">
-      <input type="text" id="searchInput" placeholder="Search Sac State buildings…" />
-      <button id="searchBtn">Search</button>
+    <div style="position:relative;flex:1;min-width:320px">
+      <div id="controls" role="search">
+        <input aria-label="Search Sac State buildings" type="text" id="searchInput" placeholder="Search Sac State buildings… (e.g., Amador Hall, Library)"/>
+        <button id="searchBtn" class="btn" aria-label="Search">Search</button>
+        <button id="locateBtn" class="btn secondary" aria-label="Use my location">Use my location</button>
+      </div>
+      <div id="suggestions" role="listbox" aria-label="Suggestions" aria-expanded="false"></div>
+      <div class="chip-row" id="recentRow" aria-label="Recent searches"></div>
     </div>
   </header>
 
-  <div id="map"></div>
+  <div id="map" role="application" aria-label="Campus map"></div>
 
-  <section id="info-box">
+  <section id="info-box" aria-live="polite">
     <h2>Building Information</h2>
-    <p id="buildingInfo">Type a building name (e.g., “Amador Hall”, “Library”, “Riverside Hall”) and press Search.</p>
+    <p id="buildingInfo">Type a building name and press Search, or pick a suggestion below.</p>
+    <ul id="resultsList" aria-label="Matches"></ul>
   </section>
 
+  <!-- Backdrop + slide-in Departments panel -->
+  <div id="deptBackdrop" aria-hidden="true"></div>
+  <aside id="deptPanel" aria-label="Departments panel" aria-hidden="true">
+    <header>
+      <h3><span id="deptPanelTitle">Building</span> — Departments</h3>
+      <button id="deptCloseBtn" class="closeBtn" aria-label="Close panel">Close</button>
+    </header>
+    <div class="content">
+      <ul id="deptList"></ul>
+    </div>
+  </aside>
+
   <!-- Google Maps JS (replace YOUR_API_KEY) -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDBfcMgy26bXXA7fLNCAcDkeqUqBUSVlqs&libraries=places&callback=initMap" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBV5sE34L0fYW9Kho3Df__Kx51BFuju5e0&libraries=places,geometry&callback=initMap" async defer></script>
 
   <script>
     // ---------- Globals ----------
-    let map, marker;
+    let map, marker, myLocation = null;
     const sacCenter = { lat: 38.561, lng: -121.424 };
+    const SUGG_MAX = 8;
+    const RECENT_KEY = 'smc_recent_v1';
+    const $ = id => document.getElementById(id);
 
-    // ---------- Local Buildings (lat/lng) ----------
-    // Notes:
-    // - Names are lowercased. Search is case-insensitive and supports partial matches.
-    // - Coordinates are best-effort and close; you can refine by clicking the map (see click listener).
+    // ---------- Local Buildings ----------
     const buildings = {
-      // Academic & admin halls
-      "alpine hall":        { lat: 38.5609, lng: -121.4240 },
-      "amador hall":        { lat: 38.5600, lng: -121.4227 },
-      "benicia hall":       { lat: 38.5592, lng: -121.4229 },
-      "brighton hall":      { lat: 38.5595, lng: -121.4224 },
-      "calaveras hall":     { lat: 38.5590, lng: -121.4235 },
-      "del norte hall":     { lat: 38.5597, lng: -121.4219 },
-      "desmond hall":       { lat: 38.5604, lng: -121.4209 },
-      "draper hall":        { lat: 38.5609, lng: -121.4238 },
-      "eureka hall":        { lat: 38.5598, lng: -121.4214 },
-      "folsom hall":        { lat: 38.5529, lng: -121.4253 },  // off main quad (65th St)
-      "humboldt hall":      { lat: 38.5601, lng: -121.4261 },
-      "jenkins hall":       { lat: 38.5612, lng: -121.4252 },
-      "kadema hall":        { lat: 38.5602, lng: -121.4233 },
-      "lassen hall":        { lat: 38.5596, lng: -121.4239 },
-      "mariposa hall":      { lat: 38.5603, lng: -121.4226 },
-      "mendocino hall":     { lat: 38.5609, lng: -121.4229 },
-      "modoc hall":         { lat: 38.5613, lng: -121.4217 },
-      "napa hall":          { lat: 38.5616, lng: -121.4221 },
-      "placer hall":        { lat: 38.5614, lng: -121.4281 },
-      "sacramento hall":    { lat: 38.5606, lng: -121.4239 },
-      "sequoia hall":       { lat: 38.5594, lng: -121.4248 },
-      "shasta hall":        { lat: 38.5598, lng: -121.4250 },
-      "sierra hall":        { lat: 38.5591, lng: -121.4243 },
-      "solano hall":        { lat: 38.5590, lng: -121.4253 },
-      "tahoe hall":         { lat: 38.5610, lng: -121.4236 },
-      "yosemite hall":      { lat: 38.5597, lng: -121.4266 },
-      "santa clara hall":   { lat: 38.5608, lng: -121.4254 },
-      "klamath hall":       { lat: 38.5605, lng: -121.4219 },
+  "alpine hall":        { lat: 38.5612814, lng: -121.4251119 },
+  "amador hall":        { lat: 38.5600,    lng: -121.4227 },
+  "benicia hall":       { lat: 38.5592,    lng: -121.4229 },
+  "brighton hall":      { lat: 38.5612814, lng: -121.4251119 },
+  "calaveras hall":     { lat: 38.5596789, lng: -121.4272877 },
+  "del norte hall":     { lat: 38.5597,    lng: -121.4219 },
+  "desmond hall":       { lat: 38.5604,    lng: -121.4209 },
+  "draper hall":        { lat: 38.5609,    lng: -121.4238 },
+  "eureka hall":        { lat: 38.5611848, lng: -121.4259054 },
+  "folsom hall":        { lat: 38.5529,    lng: -121.4253 },
+  "humboldt hall":      { lat: 38.5605421, lng: -121.4226135 },
+  "jenkins hall":       { lat: 38.5612,    lng: -121.4252 },
+  "kadema hall":        { lat: 38.5602,    lng: -121.4233 },
+  "lassen hall":        { lat: 38.5579987, lng: -121.4327087 },
+  "mariposa hall":      { lat: 38.5604378, lng: -121.4267671 },
+  "mendocino hall":     { lat: 38.5609,    lng: -121.4229 },
+  "modoc hall":         { lat: 38.5613,    lng: -121.4217 },
+  "napa hall":          { lat: 38.5616,    lng: -121.4221 },
+  "placer hall":        { lat: 38.5614,    lng: -121.4281 },
+  "sacramento hall":    { lat: 38.5606,    lng: -121.4239 },
+  "sequoia hall":       { lat: 38.5594,    lng: -121.4248 },
+  "shasta hall":        { lat: 38.5593648, lng: -121.435818 },
+  "sierra hall":        { lat: 38.5591,    lng: -121.4243 },
+  "solano hall":        { lat: 38.5597054, lng: -121.4272576 },
+  "tahoe hall":         { lat: 38.5610,    lng: -121.4236 },
+  "yosemite hall":      { lat: 38.5597,    lng: -121.4266 },
+  "santa clara hall":   { lat: 38.5608,    lng: -121.4254 },
+  "klamath hall":       { lat: 38.5605,    lng: -121.4219 },
+  "university library": { lat: 38.5605,    lng: -121.4245 },
+  "library":            { lat: 38.5605,    lng: -121.4245 },
+  "university union":   { lat: 38.5593,    lng: -121.4231 },
+  "riverside hall":     { lat:38.5610386, lng: -121.4224176 },
+  "tschannen engineering building": { lat: 38.560605,  lng: -121.4226433 },
+  "the well":           { lat: 38.5579,    lng: -121.4259 },
+  "hornet stadium":     { lat: 38.5589,    lng: -121.4285 },
+  "guy west bridge":    { lat: 38.5641,    lng: -121.4232 },
+  "student health center": { lat: 38.5591, lng: -121.4214 },
+  "dining commons":     { lat: 38.5607,    lng: -121.4260 },
+  "hornet bookstore":   { lat: 38.5589,    lng: -121.4229 },
+  "american river courtyard": { lat: 38.5621, lng: -121.4258 },
+  "riverview hall":     { lat: 38.5628,    lng: -121.4252 },
+  "desmond hall housing": { lat: 38.5604,  lng: -121.4209 },
+  "hornet commons":     { lat: 38.5497,    lng: -121.4168 },
+  "capistrano hall":    { lat: 38.5579464, lng: -121.4319887 },
+  "parking structure 1":{ lat: 38.5629,    lng: -121.4207 },
+  "parking structure 2":{ lat: 38.5597,    lng: -121.4196 },
+  "parking structure 3":{ lat: 38.5569,    lng: -121.4214 },
+  "parking structure 4":{ lat: 38.5577,    lng: -121.4270 },
+  "parking structure 5":{ lat: 38.5621,    lng: -121.4280 },
+  "parking structure 6":{ lat: 38.5543,    lng: -121.4188 },
 
-      // Common non-"hall" buildings users search
-      "university library": { lat: 38.5605, lng: -121.4245 },
-      "library":            { lat: 38.5605, lng: -121.4245 }, // alias
-      "university union":   { lat: 38.5593, lng: -121.4231 },
-      "riverside hall":     { lat: 38.5618, lng: -121.4243 },
-      "the well":           { lat: 38.5579, lng: -121.4259 },
-      "hornet stadium":     { lat: 38.5589, lng: -121.4285 },
-      "guy west bridge":    { lat: 38.5641, lng: -121.4232 },
-
-      // Student services, housing, dining, bookstore
-      "student health center": { lat: 38.5591, lng: -121.4214 },
-      "dining commons":        { lat: 38.5607, lng: -121.4260 },
-      "hornet bookstore":      { lat: 38.5589, lng: -121.4229 },
-      "american river courtyard": { lat: 38.5621, lng: -121.4258 },
-      "riverview hall":        { lat: 38.5628, lng: -121.4252 },
-      "desmond hall housing":  { lat: 38.5604, lng: -121.4209 }, // alias for housing
-      "hornet commons":        { lat: 38.5497, lng: -121.4168 },
-
-      // Parking structures & notable lots (handy for navigation)
-      "parking structure 1": { lat: 38.5629, lng: -121.4207 },
-      "parking structure 2": { lat: 38.5597, lng: -121.4196 },
-      "parking structure 3": { lat: 38.5569, lng: -121.4214 },
-      "parking structure 4": { lat: 38.5577, lng: -121.4270 },
-      "parking structure 5": { lat: 38.5621, lng: -121.4280 },
-      "parking structure 6": { lat: 38.5543, lng: -121.4188 }
-    };
+  // Helpful aliases
+  "humbolt hall":                  { lat: 38.5605421, lng: -121.4226135 },
+  "tschenan engineering building": { lat: 38.560605,  lng: -121.4226433 }
+};
 
     // ---------- Helpers ----------
-    function norm(s) { return (s || "").toLowerCase().replace(/\s+/g, " ").trim(); }
+    const norm = s => (s||"").toLowerCase().replace(/\s+/g,' ').trim();
+
+    // ================= Departments side panel =================
+    // For now: only Riverside Hall with bold heading + floors grouped
+    const departments = {
+      "riverside hall": {
+        heading: "<strong>College of Engineering and Computer Science</strong>",
+        byFloor: {
+          "2nd Floor": [
+            "Dean’s Office"
+          ],
+          "3rd Floor": [
+            "Electrical & Electronic Engineering",
+            "Computer Engineering",
+            "Computer Science"
+          ],
+          "4th Floor": [
+            "Department of Civil Engineering",
+            "Department of Mechanical Engineering",
+            "Construction Management"
+          ]
+        }
+      }
+    };
+
+    function fillDeptList(buildingTitle){
+      const key = (buildingTitle || "").toLowerCase().trim();
+      const cfg = departments[key];
+      const content = document.querySelector("#deptPanel .content");
+
+      if (!cfg || !(cfg.byFloor || cfg.items || cfg.heading)) {
+        content.innerHTML = `<ul id="deptList"><li class="muted">No department list added yet for this building.</li></ul>`;
+        return;
+      }
+
+      const headingHTML = cfg.heading ? `<p>${cfg.heading}</p>` : "";
+
+      // Back-compat: support legacy flat 'items' if present
+      if (!cfg.byFloor && cfg.items) {
+        content.innerHTML = `${headingHTML}<ul id="deptList"></ul>`;
+        const ul = document.getElementById("deptList");
+        (cfg.items || []).forEach(name => {
+          const li = document.createElement("li");
+          li.textContent = name;
+          ul.appendChild(li);
+        });
+        return;
+      }
+
+      // Build grouped-by-floor sections (ascending floor order)
+      const floors = Object.keys(cfg.byFloor || {}).sort((a,b) => {
+        const na = parseInt(a, 10); // "2nd Floor" -> 2
+        const nb = parseInt(b, 10);
+        return (isNaN(na)?999:na) - (isNaN(nb)?999:nb);
+      });
+
+      const sectionsHTML = floors.map(floor => {
+        const items = cfg.byFloor[floor] || [];
+        const lis = items.map(dep => `<li>${dep}</li>`).join("");
+        return `
+          <section class="floor-group" aria-label="${floor}">
+            <h4 class="floor-title">${floor}</h4>
+            <ul>${lis}</ul>
+          </section>
+        `;
+      }).join("");
+
+      content.innerHTML = `${headingHTML}${sectionsHTML || `<p class="muted">No departments listed.</p>`}`;
+    }
+
+    function openDeptPanel(buildingTitle){
+      $("deptPanelTitle").textContent = buildingTitle;
+      fillDeptList(buildingTitle);
+      $("deptPanel").classList.add("open");
+      $("deptBackdrop").classList.add("open");
+      $("deptPanel").setAttribute("aria-hidden","false");
+      $("deptBackdrop").setAttribute("aria-hidden","false");
+    }
+
+    function closeDeptPanel(){
+      $("deptPanel").classList.remove("open");
+      $("deptBackdrop").classList.remove("open");
+      $("deptPanel").setAttribute("aria-hidden","true");
+      $("deptBackdrop").setAttribute("aria-hidden","true");
+    }
+
+    // Close handlers
+    $("deptBackdrop").addEventListener("click", closeDeptPanel);
+    $("deptCloseBtn").addEventListener("click", closeDeptPanel);
+    window.addEventListener("keydown", e => { if(e.key === "Escape") closeDeptPanel(); });
+    // ==========================================================
 
     function dropMarkerAt(pos, title) {
       if (marker) marker.setMap(null);
       marker = new google.maps.Marker({ position: pos, map, title });
       map.panTo(pos);
       map.setZoom(18);
-      document.getElementById("buildingInfo").innerHTML = `<strong>${title}</strong>`;
+      $("buildingInfo").innerHTML = `<strong>${title}</strong>`;
+      // Open the departments side panel
+      openDeptPanel(title);
     }
 
-    function showStatus(msg) {
-      console.log("[SearchMyCampus]", msg);
-      document.getElementById("buildingInfo").textContent = msg;
+    function showStatus(msg){ $("buildingInfo").textContent = msg; }
+
+    function metersToHuman(m){
+      if (m<1000) return `${Math.round(m)} m`;
+      return `${(m/1000).toFixed(2)} km`;
     }
 
-    // ---------- Init Map ----------
-    function initMap() {
+    function distanceBetween(a,b){
+      const p1 = new google.maps.LatLng(a.lat, a.lng);
+      const p2 = new google.maps.LatLng(b.lat, b.lng);
+      return google.maps.geometry.spherical.computeDistanceBetween(p1,p2); // meters
+    }
+
+    function saveRecent(term){
+      const t = term.trim();
+      if(!t) return;
+      const rec = JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");
+      const next = [t, ...rec.filter(x=>x.toLowerCase()!==t.toLowerCase())].slice(0,6);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      renderRecent();
+    }
+
+    function renderRecent(){
+      const rec = JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");
+      const row = $("recentRow");
+      row.innerHTML = "";
+      rec.forEach(r=>{
+        const chip = document.createElement("button");
+        chip.className="chip";
+        chip.textContent=r;
+        chip.setAttribute("aria-label", `Search ${r}`);
+        chip.addEventListener("click", ()=>{
+          $("searchInput").value = r;
+          doSearch();
+        });
+        row.appendChild(chip);
+      });
+    }
+
+    // Simple Levenshtein distance for fuzzy match
+    function levenshtein(a,b){
+      a = norm(a); b = norm(b);
+      const m = a.length, n = b.length;
+      if(!m) return n; if(!n) return m;
+      const dp = Array.from({length:n+1}, (_,j)=>j);
+      for(let i=1;i<=m;i++){
+        let prev = i-1, cur = i;
+        for(let j=1;j<=n;j++){
+          const temp = cur;
+          const cost = a[i-1]===b[j-1]?0:1;
+          cur = Math.min(
+            dp[j]+1,       // deletion
+            cur+1,         // insertion
+            prev+cost      // substitution
+          );
+          prev = dp[j];
+          dp[j] = cur;
+        }
+        dp[0] = i;
+      }
+      return dp[n];
+    }
+
+    // Score candidates: higher is better
+    function score(query, candidate){
+      const q = norm(query), c = norm(candidate);
+      if(!q || !c) return 0;
+      if(c===q) return 1.0;
+      if(c.startsWith(q)) return 0.95;
+      if(c.includes(q)) return 0.85;
+      const d = levenshtein(q,c);
+      const maxLen = Math.max(q.length,c.length);
+      return Math.max(0, 1 - d / maxLen); // 0..1
+    }
+
+    function rankedSuggestions(query){
+      const q = norm(query);
+      const keys = Object.keys(buildings);
+      const ranked = keys.map(k=>({k, s: score(q,k)}))
+        .filter(x=>x.s>0.5)
+        .sort((a,b)=>b.s-a.s)
+        .slice(0,SUGG_MAX);
+      return ranked.map(x=>x.k);
+    }
+
+    function renderSuggestions(items, activeIndex=-1){
+      const box = $("suggestions");
+      box.innerHTML = "";
+      if(!items.length){ box.setAttribute("aria-expanded","false"); return; }
+      items.forEach((name,i)=>{
+        const div = document.createElement("div");
+        div.className="sugg-item";
+        div.setAttribute("role","option");
+        div.setAttribute("id",`sugg-${i}`);
+        div.setAttribute("aria-selected", i===activeIndex ? "true" : "false");
+        div.textContent = name.replace(/\b\w/g,c=>c.toUpperCase());
+        div.addEventListener("mousedown",(e)=>{ // mousedown to run before input blur
+          e.preventDefault();
+          $("searchInput").value = name;
+          doSearch();
+          hideSuggestions();
+        });
+        box.appendChild(div);
+      });
+      box.setAttribute("aria-expanded","true");
+    }
+
+    function hideSuggestions(){
+      const box = $("suggestions");
+      box.setAttribute("aria-expanded","false");
+      box.innerHTML="";
+    }
+
+    function listMatchesAround(pos, queryKey){
+      const list = $("resultsList");
+      list.innerHTML = "";
+      const base = pos || sacCenter;
+      const keys = Object.keys(buildings);
+      const q = norm(queryKey);
+      const filtered = keys.filter(k=> !q || k.includes(q))
+        .map(k=>({k, d: distanceBetween(base, buildings[k])}))
+        .sort((a,b)=>a.d-b.d)
+        .slice(0,6);
+
+      filtered.forEach(({k,d})=>{
+        const li = document.createElement("li");
+        li.className="result";
+        li.setAttribute("tabindex","0");
+        li.innerHTML = `
+          <span>${k.replace(/\b\w/g,c=>c.toUpperCase())}</span>
+          <span class="muted">${metersToHuman(d)}</span>
+        `;
+        li.addEventListener("click", ()=>{
+          const {lat,lng} = buildings[k];
+          dropMarkerAt({lat,lng}, k.replace(/\b\w/g,c=>c.toUpperCase()));
+          saveRecent(k);
+        });
+        li.addEventListener("keydown", (e)=>{
+          if(e.key==="Enter"||e.key===" "){ e.preventDefault(); li.click(); }
+        });
+        list.appendChild(li);
+      });
+    }
+
+    // ---------- Map ----------
+    function initMap(){
       const appleStyle = [
-        { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
-        { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-        { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-        { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
-        { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
-        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-        { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
-        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9e6ff' }] }
+        { elementType:'geometry', stylers:[{color:'#f5f5f5'}]},
+        { elementType:'labels.icon', stylers:[{visibility:'off'}]},
+        { elementType:'labels.text.fill', stylers:[{color:'#616161'}]},
+        { elementType:'labels.text.stroke', stylers:[{color:'#f5f5f5'}]},
+        { featureType:'administrative.land_parcel', stylers:[{visibility:'off'}]},
+        { featureType:'poi', stylers:[{visibility:'off'}]},
+        { featureType:'road', elementType:'geometry', stylers:[{color:'#ffffff'}]},
+        { featureType:'road.highway', elementType:'geometry', stylers:[{color:'#dadada'}]},
+        { featureType:'transit', stylers:[{visibility:'off'}]},
+        { featureType:'water', elementType:'geometry', stylers:[{color:'#c9e6ff'}]}
       ];
 
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: sacCenter,
-        zoom: 16,
-        styles: appleStyle,
-        mapTypeControl: false,
-        disableDefaultUI: false,
-        restriction: {
-          latLngBounds: {
-            north: 38.568, south: 38.551, west: -121.435, east: -121.415
+      map = new google.maps.Map($("map"),{
+        center:sacCenter,
+        zoom:16,
+        styles:appleStyle,
+        mapTypeControl:false,
+        disableDefaultUI:false,
+        restriction:{
+          latLngBounds:{north:38.568,south:38.551,west:-121.435,east:-121.415},
+          strictBounds:false
+        }
+      });
+
+      map.addListener('click',(e)=> console.log('Clicked at:', e.latLng.lat(), e.latLng.lng()));
+
+      const input = $("searchInput");
+      const btn = $("searchBtn");
+      const locateBtn = $("locateBtn");
+
+      // Suggestions while typing
+      let active = -1, currentItems = [];
+      input.addEventListener("input", ()=>{
+        const val = input.value;
+        currentItems = rankedSuggestions(val);
+        active = -1;
+        renderSuggestions(currentItems);
+        listMatchesAround(myLocation || sacCenter, val);
+      });
+
+      input.addEventListener("focus", ()=>{
+        if(currentItems.length) renderSuggestions(currentItems, active);
+      });
+
+      input.addEventListener("blur", ()=>{
+        setTimeout(hideSuggestions, 120); // allow mousedown selection
+      });
+
+      input.addEventListener("keydown", (e)=>{
+        const len = currentItems.length;
+        if(!len) return;
+        if(e.key==="ArrowDown"){ e.preventDefault(); active = (active+1)%len; renderSuggestions(currentItems, active); }
+        else if(e.key==="ArrowUp"){ e.preventDefault(); active = (active-1+len)%len; renderSuggestions(currentItems, active); }
+        else if(e.key==="Enter"){
+          if(active>=0){ input.value = currentItems[active]; }
+          btn.click();
+        } else if(e.key==="Escape"){ hideSuggestions(); }
+      });
+
+      // Primary search action
+      btn.addEventListener("click", doSearch);
+      input.addEventListener("keydown", e=>{ if(e.key==="Enter") btn.click(); });
+
+      // Center on me
+      locateBtn.addEventListener("click", ()=>{
+        if(!navigator.geolocation){
+          showStatus("Geolocation not supported by your browser.");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos)=>{
+            myLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            dropMarkerAt(myLocation, "My location");
+            showStatus("Centered on your location.");
+            listMatchesAround(myLocation, norm(input.value));
           },
-          strictBounds: false
-        }
-      });
-
-      const input = document.getElementById("searchInput");
-      const btn = document.getElementById("searchBtn");
-
-      // Click to grab coordinates (for fine-tuning)
-      map.addListener('click', (e) => {
-        console.log('Clicked at:', e.latLng.lat(), e.latLng.lng());
-      });
-
-      function localLookupAndGo(qRaw) {
-        const q = norm(qRaw);
-        if (!q) { showStatus("Type a building name to search."); return true; }
-
-        // 1) exact match, 2) startsWith, 3) includes
-        const keys = Object.keys(buildings);
-        const exact   = keys.find(k => k === q);
-        const starts  = keys.find(k => k.startsWith(q));
-        const partial = keys.find(k => k.includes(q));
-        const keyHit  = exact || starts || partial;
-
-        if (keyHit) {
-          const { lat, lng } = buildings[keyHit];
-          dropMarkerAt({ lat, lng }, keyHit.replace(/\b\w/g, c => c.toUpperCase()));
-          return true; // handled locally
-        }
-        return false; // not found locally
-      }
-
-      // Search button handler: local first, then Places textSearch fallback
-      btn.addEventListener("click", () => {
-        const q = input.value.trim();
-        if (localLookupAndGo(q)) return;
-
-        // Fallback to Places Text Search (requires Places API enabled)
-        const svc = new google.maps.places.PlacesService(map);
-        svc.textSearch(
-          { query: q + " Sacramento State", location: sacCenter, radius: 1500 },
-          (results, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length) {
-              const best = results
-                .map(r => ({
-                  r,
-                  d2: Math.pow(r.geometry.location.lat() - sacCenter.lat, 2) +
-                      Math.pow(r.geometry.location.lng() - sacCenter.lng, 2)
-                }))
-                .sort((a,b) => a.d2 - b.d2)[0].r;
-
-              dropMarkerAt(best.geometry.location, best.name);
-            } else {
-              showStatus("Not found. Try another name or refine your spelling.");
-            }
-          }
+          (err)=>{
+            showStatus("Couldn't get your location. (Grant permission & use HTTPS/localhost.)");
+            console.warn(err);
+          },
+          { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
         );
       });
 
-      // Also trigger search on Enter
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") btn.click();
-      });
+      // Initial UI
+      renderRecent();
+      listMatchesAround(sacCenter, "");
     }
+
+    // ---------- Search logic ----------
+    function localLookupAndGo(qRaw){
+      const q = norm(qRaw);
+      if(!q){ showStatus("Type a building name to search."); return true; }
+
+      const keys = Object.keys(buildings);
+      let best = null, bestScore = 0;
+      keys.forEach(k=>{
+        const s = score(q,k);
+        if(s>bestScore){ bestScore = s; best = k; }
+      });
+
+      if(best && bestScore >= 0.62){
+        const {lat,lng} = buildings[best];
+        dropMarkerAt({lat,lng}, best.replace(/\b\w/g,c=>c.toUpperCase()));
+        saveRecent(best);
+        listMatchesAround(myLocation || sacCenter, best);
+        return true;
+      }
+      return false;
+    }
+
+    function doSearch(){
+      const input = $("searchInput");
+      const q = input.value.trim();
+      if(localLookupAndGo(q)) return;
+
+      const svc = new google.maps.places.PlacesService(map);
+      svc.textSearch(
+        { query: q + " Sacramento State", location: sacCenter, radius: 1500 },
+        (results, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length){
+            const best = results
+              .map(r=>({ r, d2: Math.pow(r.geometry.location.lat()-sacCenter.lat,2) + Math.pow(r.geometry.location.lng()-sacCenter.lng,2) }))
+              .sort((a,b)=>a.d2-b.d2)[0].r;
+            dropMarkerAt(best.geometry.location, best.name);
+            saveRecent(best.name);
+          } else {
+            showStatus("Not found. Try another name or check your spelling.");
+          }
+        }
+      );
+    }
+
+    // Expose initMap globally for the callback
+    window.initMap = initMap;
   </script>
 </body>
 </html>
