@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 import os, time, requests
 from ..models import EventsResponse
+from ..ai import summarize_events
 
 router = APIRouter()
 
@@ -12,7 +13,7 @@ EVENTS_TTL = int(os.getenv("EVENTS_TTL", "300"))
 _cache = {"data": None, "ts": 0}
 
 @router.get("/events", response_model=EventsResponse)
-def events(limit: int = 20):
+def events(limit: int = 20, summarize: bool = False):
     now = time.time()
     if _cache["data"] and (now - _cache["ts"] < EVENTS_TTL):
         data = _cache["data"]
@@ -40,4 +41,7 @@ def events(limit: int = 20):
                 data = _cache["data"]
             else:
                 raise HTTPException(status_code=502, detail=f"Events feed error: {e}")
-    return {"events": data["events"][:limit]}
+    payload = data["events"][:limit]
+    if summarize:
+        payload = summarize_events(payload)
+    return {"events": payload}
