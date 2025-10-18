@@ -3,3 +3,5 @@ uvicorn[standard]==0.30.6
 pydantic==2.9.2
 requests==2.32.3
 beautifulsoup4==4.12.3
+openai>=1.40.0
+numpy>=1.26.4
