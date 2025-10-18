@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import offices
+from app.routes import offices, parking
 
 app = FastAPI()
 
@@ -18,3 +18,4 @@ def health():
     return {"ok": True, "ts": int(time.time())}
 
 app.include_router(offices.router, prefix="/api", tags=["Offices"])
+app.include_router(parking.router, prefix="/api", tags=["Parking"])
