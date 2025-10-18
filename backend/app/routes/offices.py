@@ -4,6 +4,7 @@ import time
 from ..db import get_db
 from ..models import Office, OfficeIn
 from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
@@ -37,3 +38,21 @@ def delete_office(office_id: int):
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Not found")
         return {"deleted": office_id}
+
+@router.get("/search", response_model=List[Office])
+def search(q: str = Query(..., min_length=1), limit: int = 20):
+    q_like = f"%{q}%"
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *,
+              (CASE WHEN name LIKE ? THEN 2 ELSE 0 END) +
+              (CASE WHEN building LIKE ? THEN 1 ELSE 0 END) AS score
+            FROM offices
+            WHERE name LIKE ? OR building LIKE ?
+            ORDER BY score DESC, updated_at DESC
+            LIMIT ?
+            """,
+            (q_like, q_like, q_like, q_like, limit)
+        ).fetchall()
+        return [dict(r) for r in rows]
