@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 import re, time, requests
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
@@ -76,4 +76,19 @@ def resolve(q: str = Query(..., min_length=2)):
         if row:
             r = dict(row); r.update({"type":"office","source":"local"})
             return r
-    return {"detail": "no local match", "query": q}
+
+    #2) web-assist on csus.edu
+    for link in ddg_csus_links(q):
+        hits = crawl_page(link)
+        if hits:
+            best = hits[0]
+            #cache for next time
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT INTO offices (name,building,room,lat,lng,url,confidence,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                    (best["name"], best["building"], best["room"], best["lat"], best["lng"], best["url"], best["confidence"], int(time.time()))
+                )
+                conn.commit()
+            return best
+
+    raise HTTPException(status_code=404, detail="Could not resolve query to an office with a known building/room.")
