@@ -16,3 +16,15 @@ class Office(OfficeIn):
 
 class EventsResponse(BaseModel):
     events: List[Dict[str, Any]]
+
+class Event(BaseModel):
+    id: Optional[str] = None
+    title: Optional[str] = None
+    start: Optional[str] = None
+    end: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    url: Optional[HttpUrl] = None
+
+class EventsResponse(BaseModel):
+    events: List[Event]
