@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes import offices
 
 app = FastAPI()
 
@@ -15,3 +16,5 @@ app.add_middleware(
 def health():
     import time
     return {"ok": True, "ts": int(time.time())}
+
+app.include_router(offices.router, prefix="/api", tags=["Offices"])
