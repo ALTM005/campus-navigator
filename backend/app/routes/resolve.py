@@ -1,6 +1,8 @@
-from fastapi import APIRouter
-import re
+from fastapi import APIRouter, Query
+import re, time, requests
+from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
+from ..db import get_db
 
 router = APIRouter()
 
@@ -63,6 +65,15 @@ def crawl_page(url: str):
         })
     return found
 
-@router.get("/resolve/ping")
-def ping():
-    return {"ok": True}
+@router.get("/resolve")
+def resolve(q: str = Query(..., min_length=2)):
+    #1) try local DB first
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM offices WHERE name LIKE ? OR building LIKE ? ORDER BY confidence DESC, updated_at DESC LIMIT 1",
+            (f"%{q}%", f"%{q}%")
+        ).fetchone()
+        if row:
+            r = dict(row); r.update({"type":"office","source":"local"})
+            return r
+    return {"detail": "no local match", "query": q}
