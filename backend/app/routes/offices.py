@@ -3,6 +3,7 @@ from typing import List
 import time
 from ..db import get_db
 from ..models import Office, OfficeIn
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
@@ -28,3 +29,11 @@ def create_office(payload: OfficeIn):
         oid = cur.lastrowid
         row = conn.execute("SELECT * FROM offices WHERE id=?", (oid,)).fetchone()
         return dict(row)
+
+@router.delete("/offices/{office_id}")
+def delete_office(office_id: int):
+    with get_db() as conn:
+        cur = conn.execute("DELETE FROM offices WHERE id=?", (office_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Not found")
+        return {"deleted": office_id}
