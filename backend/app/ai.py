@@ -58,4 +58,31 @@ def extract_office_from_html(html_snippets: List[str]) -> Optional[Dict[str, Any
         pass
     return None
 
+def summarize_events(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    cli = get_client()
+    if not cli:
+        return items
+
+    capped = items[:10]
+    text = "\n".join([
+        f"- {ev.get('title','(no title)')} | {ev.get('start','?')} | {ev.get('location','?')} | {ev.get('url','')}"
+        for ev in capped
+    ])
+    prompt = [
+        {"role":"system","content":"Classify and summarize events. Return JSON list with fields: title, summary, category."},
+        {"role":"user","content": f"Events:\n{text}\n\nCategories: academic, social, sports, arts, admin.\nReturn JSON array only."}
+    ]
+    res = cli.chat.completions.create(model=LLM_MODEL, messages=prompt, temperature=0.2)
+    try:
+        enriched = json.loads(res.choices[0].message.content)
+        by_title = {e["title"]: e for e in enriched if "title" in e}
+        out = []
+        for ev in items:
+            e = by_title.get(ev.get("title"))
+            if e:
+                ev = {**ev, "summary": e.get("summary"), "category": e.get("category")}
+            out.append(ev)
+        return out
+    except Exception:
+        return items
 
