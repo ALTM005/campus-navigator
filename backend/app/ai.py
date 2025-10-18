@@ -28,3 +28,34 @@ def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
     if na == 0 or nb == 0: return 0.0
     return float(np.dot(a, b) / (na * nb))
 
+def extract_office_from_html(html_snippets: List[str]) -> Optional[Dict[str, Any]]:
+    """
+    Ask the LLM to pull {building, room} even if text is messy.
+    Returns dict or None.
+    """
+    cli = get_client()
+    if not cli:
+        return None
+    prompt = {
+        "role": "system",
+        "content": "You extract structured campus location data from noisy text. Return JSON ONLY."
+    }
+    user = {
+        "role": "user",
+        "content": (
+            "From the text below, find the Sac State office location. "
+            "Return strictly this JSON: {\"building\": string, \"room\": string|null, \"confidence\": number}.\n\n"
+            f"TEXT:\n---\n{'\n---\n'.join(html_snippets)}\n---"
+        )
+    }
+    res = cli.chat.completions.create(model=LLM_MODEL, messages=[prompt, user], temperature=0.1)
+    raw = res.choices[0].message.content.strip()
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict) and "building" in data:
+            return data
+    except Exception:
+        pass
+    return None
+
+
