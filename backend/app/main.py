@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import offices, parking, events, resolve
+from app.routes import offices, parking, events, resolve, events_smart
 
 app = FastAPI()
 
@@ -20,4 +20,5 @@ def health():
 app.include_router(offices.router, prefix="/api", tags=["Offices"])
 app.include_router(parking.router, prefix="/api", tags=["Parking"])
 app.include_router(events.router, prefix="/api", tags=["Events"])
+app.include_router(events_smart.router, prefix="/api", tags=["Events"])
 app.include_router(resolve.router,  prefix="/api", tags=["Resolve"])
