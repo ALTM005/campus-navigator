@@ -25,6 +25,8 @@ class Event(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
     url: Optional[HttpUrl] = None
+    summary: Optional[str] = None
+    category: Optional[str] = None
 
 class EventsResponse(BaseModel):
     events: List[Event]

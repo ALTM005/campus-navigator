@@ -31,7 +31,7 @@ def events(limit: int = 20, summarize: bool = False):
                     "end": ev.get("endDateTime") or ev.get("end") or ev.get("EndDateTime"),
                     "location": ev.get("location") or ev.get("Location"),
                     "description": ev.get("description") or ev.get("Description"),
-                    "url": ev.get("url") or ev.get("Url") or ev.get("permalink"),
+                    "url": (ev.get("url") or ev.get("Url") or ev.get("permalink") or None),
                 })
             data = {"events": items}
             _cache.update({"data": data, "ts": now})
