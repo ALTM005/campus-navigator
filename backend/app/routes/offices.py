@@ -81,3 +81,31 @@ def reindex_embeddings():
             )
         conn.commit()
     return {"ok": True, "count": len(rows)}
+
+@router.get("/semantic_search")
+def semantic_search(q: str, limit: int = 10):
+    qv = embed_texts([q])
+    if not qv:
+        #fallback if AI disabled
+        return search(q=q, limit=limit)
+    qv = np.array(qv[0], dtype=np.float32)
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT o.*, e.vector as vec
+            FROM offices o
+            JOIN office_embeddings e ON e.office_id = o.id
+        """).fetchall()
+    scored = []
+    for r in rows:
+        v = _unpack(r["vec"])
+        denom = (np.linalg.norm(qv) * np.linalg.norm(v)) or 1.0
+        s = float(np.dot(qv, v) / denom)
+        scored.append((s, r))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    out = []
+    for s, r in scored[:limit]:
+        d = dict(r)
+        d["semantic_score"] = s
+        d.pop("vec", None)
+        out.append(d)
+    return out
