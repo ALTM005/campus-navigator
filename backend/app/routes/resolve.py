@@ -3,6 +3,7 @@ import re, time, requests
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from ..db import get_db
+from ..ai import extract_office_from_html
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ def ddg_csus_links(query: str, max_links: int = 5):
     return links
 
 def crawl_page(url: str):
-    r = requests.get(url, timeout=10, headers={"User-Agent":"Mozilla/5.0"})
+    r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
     r.raise_for_status()
     soup = BeautifulSoup(r.text, "html.parser")
     title = (soup.title.string or url).strip() if soup.title else url
@@ -65,9 +66,42 @@ def crawl_page(url: str):
         })
     return found
 
+def ai_guess_office_from_url(url: str):
+    """LLM-assisted fallback when regex/centroids miss."""
+    try:
+        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+    except Exception:
+        return None
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    candidates = [t.get_text(" ", strip=True) for t in soup.select("h1, h2, h3, p, li")][:20]
+    guess = extract_office_from_html(candidates)
+    if not guess:
+        return None
+
+    building = guess.get("building")
+    if building not in BUILDING_CENTROIDS:
+        return None
+
+    lat, lng = BUILDING_CENTROIDS[building]
+    title = (soup.title.string or url).strip() if soup.title else url
+    return {
+        "type": "office",
+        "name": title,
+        "building": building,
+        "room": guess.get("room"),
+        "lat": lat,
+        "lng": lng,
+        "url": url,
+        "confidence": float(guess.get("confidence", 0.6)),
+        "source": "web+ai",
+    }
+
+
 @router.get("/resolve")
 def resolve(q: str = Query(..., min_length=2)):
-    #1) try local DB first
+    #1) local DB first
     with get_db() as conn:
         row = conn.execute(
             "SELECT * FROM offices WHERE name LIKE ? OR building LIKE ? ORDER BY confidence DESC, updated_at DESC LIMIT 1",
@@ -77,12 +111,11 @@ def resolve(q: str = Query(..., min_length=2)):
             r = dict(row); r.update({"type":"office","source":"local"})
             return r
 
-    #2) web-assist on csus.edu
+    #2) web assist, scrape first, then AI fallback
     for link in ddg_csus_links(q):
         hits = crawl_page(link)
         if hits:
             best = hits[0]
-            #cache for next time
             with get_db() as conn:
                 conn.execute(
                     "INSERT INTO offices (name,building,room,lat,lng,url,confidence,updated_at) VALUES (?,?,?,?,?,?,?,?)",
@@ -90,5 +123,16 @@ def resolve(q: str = Query(..., min_length=2)):
                 )
                 conn.commit()
             return best
+
+        #AI fallback
+        ai_best = ai_guess_office_from_url(link)
+        if ai_best:
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT INTO offices (name,building,room,lat,lng,url,confidence,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                    (ai_best["name"], ai_best["building"], ai_best["room"], ai_best["lat"], ai_best["lng"], ai_best["url"], ai_best["confidence"], int(time.time()))
+                )
+                conn.commit()
+            return ai_best
 
     raise HTTPException(status_code=404, detail="Could not resolve query to an office with a known building/room.")
