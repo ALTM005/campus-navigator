@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SearchMyCampus</title>
+  <style>
+    :root{
+      --brand:#043927;
+      --brand-2:#00573f;
+      --bg:#f7f8fa;
+      --card:#ffffff;
+      --text:#1b1b1b;
+      --muted:#6b7280;
+      --ring:#94d3ac;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Poppins',sans-serif;margin:0;background-color:var(--bg);color:var(--text)}
+
+    /* Top site header */
+    header.site{
+      display:flex;justify-content:space-between;align-items:center;gap:16px;
+      background-color:var(--brand);color:#fff;padding:10px 20px;flex-wrap:wrap;position:sticky;top:0;z-index:20
+    }
+    .left-section{display:flex;align-items:center;gap:10px}
+    .left-section img{height:60px;width:auto;border-radius:5px}
+    .left-section h1{font-size:1.8rem;margin:0;color:#fff;white-space:nowrap}
+
+    #controls{flex:1;min-width:320px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}
+    #searchInput{
+      width:100%;padding:10px 12px;border:2px solid #d1d5db;border-radius:10px;font-size:1rem;background:#fff;color:#222;
+      outline:none
+    }
+    #searchInput:focus{border-color:var(--ring);box-shadow:0 0 0 4px rgba(17,179,94,.15)}
+    .btn{padding:10px 14px;border:none;border-radius:8px;background:var(--brand-2);color:#fff;font-weight:600;cursor:pointer}
+    .btn:hover{background:#007a55}
+    .btn.secondary{background:#1f2937}
+    .btn.secondary:hover{background:#374151}
+
+    #suggestions{
+      position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-top:6px;
+      box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;max-height:280px;overflow-y:auto;z-index:30;display:none
+    }
+    #suggestions[aria-expanded="true"]{display:block}
+    .sugg-item{padding:10px 12px;cursor:pointer}
+    .sugg-item[aria-selected="true"], .sugg-item:hover{background:#f3f4f6}
+    .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+    .chip{background:#e5efe9;color:#0f5132;padding:6px 10px;border-radius:999px;font-size:.85rem;cursor:pointer}
+
+    /* Status bar */
+    #statusBar{
+      width:90%;max-width:1100px;margin:14px auto 0 auto;background:#ffffff;border:1px solid #e5e7eb;
+      border-radius:10px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,.04);color:#111
+    }
+
+    #map{
+      height:520px;width:90%;margin:12px auto;border-radius:15px;background:#eaeaea;
+      box-shadow:0 0 10px rgba(0,0,0,.1)
+    }
+
+    /* Dashboard: Resources + Events */
+    #dashboard{
+      width:90%;max-width:1100px;margin:14px auto 28px auto;display:grid;gap:16px;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width: 900px){
+      #dashboard{ grid-template-columns: 1fr; }
+    }
+    .card{
+      background:var(--card);border-radius:12px;border:1px solid #e5e7eb;
+      box-shadow:0 4px 12px rgba(0,0,0,.06);padding:16px
+    }
+    .card h2{ margin:0 0 10px; color:var(--brand); font-size:1.25rem; }
+    .list{ list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+
+    /* Clickable link cards */
+    .link-card{
+      display:block; text-decoration:none; color:inherit;
+      border:1px solid #e5e7eb; border-radius:10px; background:#fff; padding:10px 12px;
+      transition:background .15s ease, border-color .15s ease, transform .05s ease;
+    }
+    .link-card:hover{ background:#f9fafb; border-color:#d1d5db; }
+    .link-card:active{ transform:scale(0.995); }
+
+    .item .title{ font-weight:700; }
+    .item .meta{ color:#374151; font-size:.95rem; }
+    .item .where{ color:#111827; font-size:.95rem; }
+
+    .muted{color:var(--muted);font-size:.9rem}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+    /* --- Dept side panel --- */
+    #deptBackdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.25);
+      opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:39;
+    }
+    #deptBackdrop.open{ opacity:1; pointer-events:auto; }
+
+    #deptPanel{
+      position:fixed; top:0; right:-380px; height:100vh; width:360px;
+      background:#fff; box-shadow:-12px 0 32px rgba(0,0,0,.15);
+      transition:right .25s ease; z-index:40; display:flex; flex-direction:column;
+      border-left:1px solid #e5e7eb; color:#111;
+    }
+    #deptPanel.open{ right:0; }
+    #deptPanel header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px; border-bottom:1px solid #e5e7eb; background:#f9fafb; color:#111;
+    }
+    #deptPanel h3{ margin:0; font-size:1.05rem; color:#111; }
+    #deptPanel .closeBtn{
+      border:none; background:#1f2937; color:#fff; border-radius:8px; padding:8px 10px; cursor:pointer;
+    }
+    #deptPanel .closeBtn:hover{ background:#374151; }
+    #deptPanel .content{ padding:12px 16px; overflow:auto; }
+
+    /* Panel list items */
+    #deptPanel ul{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+    #deptPanel li{ border:1px solid #e5e7eb; border-radius:10px; background:#fff; }
+
+    /* Grouped-by-floor styling */
+    #deptPanel .floor-group{ margin:12px 0 16px; }
+    #deptPanel .floor-title{ margin:6px 0 8px; font-weight:700; color:var(--brand); }
+    #deptPanel .floor-group ul{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+
+    /* Detail card (when searching a department/office) */
+    #deptPanel .detail-card{
+      border:1px solid #e5e7eb; border-radius:12px; background:#f8faf9;
+      padding:12px 14px; margin:0 0 12px 0;
+    }
+    #deptPanel .detail-title{ font-weight:700; margin:0 0 6px; }
+    #deptPanel .detail-sub{ color:#374151; margin:0 0 6px; }
+    #deptPanel .detail-hours{ color:#111827; }
+
+    /* Accordion styling for department items */
+    details.dept{
+      border:1px solid #e5e7eb; border-radius:10px; background:#fff;
+    }
+    details.dept[open]{ background:#f9fafb; }
+    details.dept > summary{
+      cursor:pointer; list-style:none; padding:10px 12px; font-weight:600;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    details.dept > summary::marker{ display:none; }
+    details.dept > .dept-body{
+      padding:10px 12px; border-top:1px dashed #e5e7eb; color:#1f2937;
+      font-size:0.95rem;
+    }
+    .chev{transition:transform .15s ease}
+    details[open] .chev{ transform:rotate(90deg); }
+    .hint{ color:#6b7280; font-weight:500; font-size:.9rem; }
+
+    /* Chooser list buttons */
+    .chooser-list{ display:grid; gap:8px; padding:0; margin:0; list-style:none; }
+    .chooser-item{ border:1px solid #e5e7eb; border-radius:10px; background:#fff; padding:10px 12px; cursor:pointer; }
+    .chooser-item:hover{ background:#f9fafb; }
+    .chooser-title{ font-weight:700; }
+    .chooser-sub{ color:#374151; font-size:.95rem; }
+  </style>
+</head>
+<body>
+  <!-- top site header -->
+  <header class="site">
+    <div class="left-section">
+      <a href="https://www.csus.edu" target="_blank" rel="noopener">
+        <img src="sacstate_logo.jpeg" alt="Sac State logo"/>
+      </a>
+      <h1>SearchMyCampus</h1>
+    </div>
+
+    <div style="position:relative;flex:1;min-width:320px">
+      <div id="controls" role="search">
+        <input aria-label="Search Sac State buildings or departments" type="text" id="searchInput" placeholder="Search buildings or departments… (e.g., Riverside Hall, Dean’s Office)"/>
+        <button id="searchBtn" class="btn" aria-label="Search">Search</button>
+        <button id="locateBtn" class="btn secondary" aria-label="Use my location">Use my location</button>
+      </div>
+      <div id="suggestions" role="listbox" aria-label="Suggestions" aria-expanded="false"></div>
+      <div class="chip-row" id="recentRow" aria-label="Recent searches"></div>
+    </div>
+  </header>
+
+  <!-- status bar -->
+  <div id="statusBar" aria-live="polite">Welcome! Search a building or department to get started.</div>
+
+  <div id="map" role="application" aria-label="Campus map"></div>
+
+  <!-- Dashboard -->
+  <section id="dashboard">
+    <!-- Campus Resources -->
+    <div class="card" aria-labelledby="resourcesTitle">
+      <h2 id="resourcesTitle">Campus Resources</h2>
+      <ul class="list" id="resourcesList"></ul>
+    </div>
+
+    <!-- Campus Events -->
+    <div class="card" aria-labelledby="eventsTitle">
+      <h2 id="eventsTitle">Campus Events</h2>
+      <ul class="list" id="eventsList"></ul>
+    </div>
+  </section>
+
+  <!-- Accessibility-only placeholders (keep JS happy) -->
+  <p id="buildingInfo" class="sr-only"></p>
+  <ul id="resultsList" class="sr-only" aria-label="Matches"></ul>
+
+  <!-- Backdrop + slide-in Departments / Office panel -->
+  <div id="deptBackdrop" aria-hidden="true"></div>
+  <aside id="deptPanel" aria-label="Departments panel" aria-hidden="true">
+    <header>
+      <h3><span id="deptPanelTitle">Building</span> — Departments</h3>
+      <button id="deptCloseBtn" class="closeBtn" aria-label="Close panel">Close</button>
+    </header>
+    <div class="content">
+      <ul id="deptList"></ul>
+    </div>
+  </aside>
+
+  <!-- Google Maps JS -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBV5sE34L0fYW9Kho3Df__Kx51BFuju5e0&libraries=places,geometry&callback=initMap" async defer></script>
+
+  <script>
+    // ---------- Globals ----------
+    let map, marker, myLocation = null;
+    let lastDeptContext = null; // set when searching a department/office
+    const sacCenter = { lat: 38.561, lng: -121.424 };
+    const SUGG_MAX = 8;
+    const RECENT_KEY = 'smc_recent_v1';
+    const $ = id => document.getElementById(id);
+
+    // ---------- Local Buildings (unchanged, trimmed for brevity where possible) ----------
+    const buildings = {
+      "alpine hall":        { lat: 38.56169, lng: -121.42428 },
+      "amador hall":        { lat: 38.5591275,    lng: -121.4248346 },
+      "benicia hall":       { lat: 38.5592,    lng: -121.4229 },
+      "brighton hall":      { lat: 38.5612814, lng: -121.4251119 },
+      "calaveras hall":     { lat: 38.56219,    lng: -121.42447 },
+      "del norte hall":     { lat: 38.5597,    lng: -121.4219 },
+      "desmond hall":       { lat: 38.5604,    lng: -121.4209 },
+      "draper hall":        { lat: 38.5609,    lng: -121.4238 },
+      "eureka hall":        { lat: 38.56122, lng: -121.42523 },
+      "folsom hall":        { lat: 38.5529,    lng: -121.4253 },
+      "humboldt hall":      { lat: 38.5605421, lng: -121.4226135 },
+      "jenkins hall":       { lat: 38.5612,    lng: -121.4252 },
+      "kadema hall":        { lat: 38.56212,    lng: -121.42563 },
+      "lassen hall":        { lat: 38.5579987, lng: -121.4327087 },
+      "mariposa hall":      { lat: 38.56171, lng: -121.42536 },
+      "mendocino hall":     { lat: 38.56278,    lng: -121.42356  },
+      "modoc hall":         { lat: 38.5613,    lng: -121.4217 },
+      "napa hall":          { lat: 38.5616,    lng: -121.4221 },
+      "placer hall":        { lat: 38.5614,    lng: -121.4281 },
+      "sacramento hall":    { lat: 38.5606,    lng: -121.4239 },
+      "sequoia hall":       { lat: 38.5594,    lng: -121.4248 },
+      "shasta hall":        { lat: 38.5593648, lng: -121.435818 },
+      "sierra hall":        { lat: 38.5591,    lng: -121.4243 },
+      "solano hall":        { lat: 38.56180, lng: -121.42634  },
+      "tahoe hall":         { lat: 38.55838,    lng: -121.42402 },
+      "yosemite hall":      { lat: 38.56245,    lng: -121.42723 },
+      "santa clara hall":   { lat: 38.5608,    lng: -121.4254 },
+      "klamath hall":       { lat: 38.5605,    lng: -121.4219 },
+      "university library": { lat: 38.5605,    lng: -121.4245 },
+      "library":            { lat: 38.5605,    lng: -121.4245 },
+      "university union":   { lat: 38.5593,    lng: -121.4231 },
+      "riverside hall":     { lat: 38.5610386, lng: -121.4224176 },
+      "tschannen engineering building": { lat: 38.560605,  lng: -121.4226433 },
+      "the well":           { lat: 38.5579,    lng: -121.4259 },
+      "hornet stadium":     { lat: 38.5589,    lng: -121.4285 },
+      "guy west bridge":    { lat: 38.5641,    lng: -121.4232 },
+      "student health center": { lat: 38.5591, lng: -121.4214 },
+      "dining commons":     { lat: 38.5607,    lng: -121.4260 },
+      "hornet bookstore":   { lat: 38.5589,    lng: -121.4229 },
+      "american river courtyard": { lat: 38.5621, lng: -121.4258 },
+      "riverview hall":     { lat: 38.5628,    lng: -121.4252 },
+      "desmond hall housing": { lat: 38.5604,  lng: -121.4209 },
+      "hornet commons":     { lat: 38.5497,    lng: -121.4168 },
+      "capistrano hall":    { lat: 38.55992, lng: -121.42578 },
+      "parking structure 1":{ lat: 38.5629,    lng: -121.4207 },
+      "parking structure 2":{ lat: 38.5597,    lng: -121.4196 },
+      "parking structure 3":{ lat: 38.5569,    lng: -121.4214 },
+      "parking structure 4":{ lat: 38.5577,    lng: -121.4270 },
+      "parking structure 5":{ lat: 38.5621,    lng: -121.4280 },
+      "parking structure 6":{ lat: 38.5543,    lng: -121.4188 },
+
+      // Helpful aliases
+      "humbolt hall":                  { lat: 38.5605421, lng: -121.4226135 },
+      "tschenan engineering building": { lat: 38.560605,  lng: -121.4226433 }
+    };
+
+    // ---------- Helpers ----------
+    const norm = s => (s||"").toLowerCase().replace(/\s+/g,' ').trim();
+    const clean = s => norm(s).replace(/[^a-z0-9 ]/g,'');
+    const titleize = k => (k||"").replace(/\b\w/g,c=>c.toUpperCase());
+
+    // ========== NEW: Data for Resources & Events (with links) ==========
+    // Replace any URL marked as PLACEHOLDER with the actual link you want.
+    const resourcesData = [
+      {
+        title: "ASI Food Pantry",
+        hours: "Mon–Fri, 10:00 AM – 4:00 PM",
+        where: "University Union (1st Floor)",
+        link: "https://asi.csus.edu/asi-food-pantry/" // likely official ASI link
+      },
+      {
+        title: "Student Health & Counseling",
+        hours: "Mon–Fri, 8:00 AM – 5:00 PM",
+        where: "Student Health Center",
+        link: "https://www.csus.edu/student-life/health-counseling/" // general SHC landing
+      },
+      {
+        title: "Academic Advising",
+        hours: "Mon–Fri, 9:00 AM – 4:30 PM",
+        where: "Lassen Hall",
+        link: "https://www.csus.edu/student-life/academic-advising/" // advising site
+      }
+    ];
+
+    const eventsData = [
+      {
+        title: "Hackathon",
+        time: "Sat, 10:00 AM – Sun, 10:00 AM",
+        where: "University Union Ballroom",
+        link: "https://www.csus.edu/newsroom/events/" // PLACEHOLDER: replace with your hackathon page/registration
+      },
+      {
+        title: "Football Game",
+        time: "Fri, 7:00 PM – 10:00 PM",
+        where: "Hornet Stadium",
+        link: "https://hornetsports.com/sports/football/schedule" // athletics schedule
+      }
+    ];
+
+    // Render the dashboard lists as clickable link-cards
+    function renderDashboard(){
+      const rList = $("resourcesList");
+      const eList = $("eventsList");
+      rList.innerHTML = resourcesData.map(item => `
+        <li>
+          <a class="item link-card" href="${item.link}" target="_blank" rel="noopener" aria-label="${item.title} (opens in new tab)">
+            <div class="title">${item.title}</div>
+            <div class="meta">Hours: ${item.hours}</div>
+            <div class="where">Location: ${item.where}</div>
+          </a>
+        </li>
+      `).join("");
+
+      eList.innerHTML = eventsData.map(item => `
+        <li>
+          <a class="item link-card" href="${item.link}" target="_blank" rel="noopener" aria-label="${item.title} (opens in new tab)">
+            <div class="title">${item.title}</div>
+            <div class="meta">Time: ${item.time}</div>
+            <div class="where">Location: ${item.where}</div>
+          </a>
+        </li>
+      `).join("");
+    }
+
+    // ================= Departments / Offices (same as your last version) =================
+    const departments = {
+      "riverside hall": {
+        heading: "<strong>College of Engineering and Computer Science</strong>",
+        byFloor: {
+          "2nd Floor": [ "ECS Dean’s Office" ],
+          "3rd Floor": [ "Department of Electrical & Electronic Engineering","Department of Computer Engineering","Department of Computer Science" ],
+          "4th Floor": [ "Department of Civil Engineering","Department of Mechanical Engineering","Department of Construction Management" ]
+        }
+      },
+      "tahoe hall": {
+        heading: "<strong>College of Business</strong>",
+        byFloor: { "1st Floor": [ "College of Business Dean’s Office" ] }
+      },
+      "sequoia hall": {
+        heading: "<strong>College of Natural Sciences & Mathematics</strong>",
+        byFloor: { "1st Floor": [ "NSM Dean’s Office" ] }
+      },
+      "mendocino hall": {
+        heading: "<strong>College of Arts & Letters</strong>",
+        byFloor: { "1st Floor": [ "Arts & Letters Dean’s Office" ] }
+      },
+      "eureka hall": {
+        heading: "<strong>College of Education</strong>",
+        byFloor: { "1st Floor": [ "College of Education Dean’s Office" ] }
+      },
+      "folsom hall": {
+        heading: "<strong>College of Health & Human Services</strong>",
+        byFloor: { "1st Floor": [ "HHS Dean’s Office" ] }
+      },
+      "amador hall": {
+        heading: "<strong>College of Social Sciences & Interdisciplinary Studies</strong>",
+        byFloor: { "1st Floor": [ "SSIS Dean’s Office" ] }
+      },
+      "napa hall": {
+        heading: "<strong>College of Continuing Education</strong>",
+        byFloor: { "1st Floor": [ "CCE Dean’s Office" ] }
+      }
+    };
+
+    const deanDirectory = [
+      { label:"ECS Dean’s Office", college:"College of Engineering & Computer Science", buildingKey:"riverside hall", floor:"2nd Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"College of Business Dean’s Office", college:"College of Business", buildingKey:"tahoe hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"NSM Dean’s Office", college:"College of Natural Sciences & Mathematics", buildingKey:"sequoia hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"Arts & Letters Dean’s Office", college:"College of Arts & Letters", buildingKey:"mendocino hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"College of Education Dean’s Office", college:"College of Education", buildingKey:"eureka hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"HHS Dean’s Office", college:"College of Health & Human Services", buildingKey:"folsom hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"SSIS Dean’s Office", college:"College of Social Sciences & Interdisciplinary Studies", buildingKey:"amador hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" },
+      { label:"CCE Dean’s Office", college:"College of Continuing Education", buildingKey:"napa hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM" }
+    ];
+
+    const departmentIndex = {
+      "ecs dean’s office": { buildingKey:"riverside hall", floor:"2nd Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"ECS Dean’s Office" },
+      "ecs dean's office": { buildingKey:"riverside hall", floor:"2nd Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"ECS Dean’s Office" },
+      "college of business dean’s office": { buildingKey:"tahoe hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"College of Business Dean’s Office" },
+      "college of business dean's office": { buildingKey:"tahoe hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"College of Business Dean’s Office" },
+      "nsm dean’s office": { buildingKey:"sequoia hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"NSM Dean’s Office" },
+      "nsm dean's office": { buildingKey:"sequoia hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"NSM Dean’s Office" },
+      "arts & letters dean’s office": { buildingKey:"mendocino hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"Arts & Letters Dean’s Office" },
+      "arts & letters dean's office": { buildingKey:"mendocino hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"Arts & Letters Dean’s Office" },
+      "college of education dean’s office": { buildingKey:"eureka hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"College of Education Dean’s Office" },
+      "college of education dean's office": { buildingKey:"eureka hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"College of Education Dean’s Office" },
+      "hhs dean’s office": { buildingKey:"folsom hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"HHS Dean’s Office" },
+      "hhs dean's office": { buildingKey:"folsom hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"HHS Dean’s Office" },
+      "ssis dean’s office": { buildingKey:"amador hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"SSIS Dean’s Office" },
+      "ssis dean's office": { buildingKey:"amador hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"SSIS Dean’s Office" },
+      "cce dean’s office": { buildingKey:"napa hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"CCE Dean’s Office" },
+      "cce dean's office": { buildingKey:"napa hall", floor:"1st Floor", hours:"Mon–Fri: 8:00 AM – 5:00 PM", display:"CCE Dean’s Office" }
+    };
+
+    const departmentDetails = {
+      "ECS Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Student services, advising referrals, and college administration." },
+      "College of Business Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for the College of Business." },
+      "NSM Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for NSM." },
+      "Arts & Letters Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for Arts & Letters." },
+      "College of Education Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for the College of Education." },
+      "HHS Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for Health & Human Services." },
+      "SSIS Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for SSIS." },
+      "CCE Dean’s Office": { hours:"Mon–Fri: 8:00 AM – 5:00 PM", phone:"(916) 278-XXXX", note:"Dean’s administration for Continuing Education." },
+
+      "Department of Electrical & Electronic Engineering": { hours:"Mon–Fri: 9:00 AM – 4:30 PM", phone:"(916) 278-XXXX", note:"Office support, faculty mailboxes, lab access coordination." },
+      "Department of Computer Engineering": { hours:"Mon–Fri: 9:00 AM – 4:30 PM", phone:"(916) 278-XXXX", note:"Undergraduate advising windows and capstone info." },
+      "Department of Computer Science": { hours:"Mon–Fri: 9:00 AM – 4:30 PM", phone:"(916) 278-XXXX", note:"Grad/undergrad office hours; TA schedules vary by semester." },
+      "Department of Civil Engineering": { hours:"Mon–Fri: 9:00 AM – 4:00 PM", phone:"(916) 278-XXXX", note:"Project lab reservations and advising sign-ups." },
+      "Department of Mechanical Engineering": { hours:"Mon–Fri: 9:00 AM – 4:00 PM", phone:"(916) 278-XXXX", note:"Shop access orientations and safety trainings." },
+      "Department of Construction Management": { hours:"Mon–Fri: 9:00 AM – 4:00 PM", phone:"(916) 278-XXXX", note:"Industry partnerships and internship postings." }
+    };
+
+    // --------- PANEL RENDERING ----------
+    function fillDeptList(buildingTitle, opts = {}){
+      const key = (buildingTitle || "").toLowerCase().trim();
+      const cfg = departments[key];
+      const content = document.querySelector("#deptPanel .content");
+
+      // Special mode: dean chooser
+      if (opts.mode === "dean-chooser") {
+        const listHTML = deanDirectory.map((o, idx) => {
+          return `
+            <li class="chooser-item" data-idx="${idx}" role="button" tabindex="0" aria-label="${o.label}">
+              <div class="chooser-title">${o.label}</div>
+              <div class="chooser-sub">${o.college} — ${titleize(o.buildingKey)}${o.floor ? " • " + o.floor : ""}</div>
+            </li>
+          `;
+        }).join("");
+        content.innerHTML = `
+          <div class="detail-card">
+            <div class="detail-title">Dean’s Offices</div>
+            <div class="detail-sub">Select a dean’s office to view its location and details.</div>
+          </div>
+          <ul class="chooser-list">${listHTML}</ul>
+        `;
+        content.querySelectorAll(".chooser-item").forEach(el=>{
+          el.addEventListener("click", ()=>{
+            const idx = parseInt(el.getAttribute("data-idx"), 10);
+            const item = deanDirectory[idx];
+            if (item) goToDeanOffice(item);
+          });
+          el.addEventListener("keydown", (e)=>{
+            if(e.key==="Enter"||e.key===" "){ e.preventDefault(); el.click(); }
+          });
+        });
+        return;
+      }
+
+      let detail = "";
+      const matchedNorm = opts.matchedDept ? clean(opts.matchedDept) : null;
+
+      if (opts.matchedDept) {
+        const loc = `Located in ${buildingTitle}${opts.floor ? " — " + opts.floor : ""}`;
+        const hours = opts.hours ? `<div class="detail-hours"><strong>Hours:</strong> ${opts.hours}</div>` : "";
+        detail = `
+          <div class="detail-card" role="note" aria-label="Office details">
+            <div class="detail-title">${opts.matchedDept}</div>
+            <div class="detail-sub">${loc}</div>
+            ${hours}
+          </div>
+        `;
+      }
+
+      if (!cfg || !(cfg.byFloor || cfg.items || cfg.heading)) {
+        content.innerHTML = `${detail}<ul id="deptList"><li class="muted">No department list added yet for this building.</li></ul>`;
+        return;
+      }
+
+      const headingHTML = cfg.heading ? `<p>${cfg.heading}</p>` : "";
+
+      // Grouped-by-floor (hide matched office if present)
+      const floors = Object.keys(cfg.byFloor || {}).sort((a,b) => {
+        const na = parseInt(a, 10), nb = parseInt(b, 10);
+        return (isNaN(na)?999:na) - (isNaN(nb)?999:nb);
+      });
+
+      const sectionsHTML = floors.map(floor => {
+        let items = cfg.byFloor[floor] || [];
+        if (matchedNorm) items = items.filter(dep => clean(dep) !== matchedNorm);
+        if (!items.length) return "";
+        const lis = items.map(dep => renderDeptAccordion(dep, floor)).join("");
+        return `
+          <section class="floor-group" aria-label="${floor}">
+            <h4 class="floor-title">${floor} <span class="hint">(tap a department)</span></h4>
+            <ul>${lis}</ul>
+          </section>
+        `;
+      }).join("");
+
+      content.innerHTML = `${detail}${headingHTML}${sectionsHTML || `<p class="muted">No other departments listed.</p>`}`;
+    }
+
+    function goToDeanOffice(item){
+      const key = (item.buildingKey||"").toLowerCase();
+      const coords = buildings[key];
+      const buildingTitle = titleize(key);
+
+      if (!coords) {
+        showStatus(`We don’t have a map location saved for ${buildingTitle} yet.`);
+        $("deptPanelTitle").textContent = "Dean’s Offices";
+        fillDeptList("Dean’s Offices", { mode:"dean-chooser" });
+        return;
+      }
+
+      lastDeptContext = { matchedDept: item.label, floor: item.floor, hours: item.hours };
+      dropMarkerAt(coords, buildingTitle);
+      showStatus(`${item.label}${item.floor? " — "+item.floor:""} is in ${buildingTitle}.`);
+      saveRecent(item.label);
+      listMatchesAround(coords, key);
+    }
+
+    function renderDeptAccordion(depLabel, floor){
+      const info = departmentDetails[depLabel] || {};
+      const hours = info.hours ? `<div><strong>Hours:</strong> ${info.hours}</div>` : `<div><strong>Hours:</strong> Mon–Fri: 9:00 AM – 5:00 PM</div>`;
+      const phone = info.phone ? `<div><strong>Phone:</strong> ${info.phone}</div>` : "";
+      const note  = info.note  ? `<div>${info.note}</div>` : "";
+      const floorText = floor ? `<div><strong>Floor:</strong> ${floor}</div>` : "";
+      const chev = `<svg class="chev" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 6l6 4-6 4V6z" stroke="currentColor"/></svg>`;
+
+      return `
+        <li>
+          <details class="dept">
+            <summary>${depLabel}<span aria-hidden="true">${chev}</span></summary>
+            <div class="dept-body">
+              ${floorText}
+              ${hours}
+              ${phone}
+              ${note}
+            </div>
+          </details>
+        </li>
+      `;
+    }
+
+    function openDeptPanel(buildingTitle, opts = {}){
+      $("deptPanelTitle").textContent = buildingTitle;
+      fillDeptList(buildingTitle, opts);
+      $("deptPanel").classList.add("open");
+      $("deptBackdrop").classList.add("open");
+      $("deptPanel").setAttribute("aria-hidden","false");
+      $("deptBackdrop").setAttribute("aria-hidden","false");
+    }
+
+    function closeDeptPanel(){
+      $("deptPanel").classList.remove("open");
+      $("deptBackdrop").classList.remove("open");
+      $("deptPanel").setAttribute("aria-hidden","true");
+      $("deptBackdrop").setAttribute("aria-hidden","true");
+    }
+
+    // Close handlers
+    $("deptBackdrop").addEventListener("click", closeDeptPanel);
+    $("deptCloseBtn").addEventListener("click", closeDeptPanel);
+    window.addEventListener("keydown", e => { if(e.key === "Escape") closeDeptPanel(); });
+
+    // -------- Reverse lookup: department/office -> building --------
+    function findBuildingByDepartment(query){
+      const q = clean(query);
+      if(!q) return null;
+
+      // generic dean search -> chooser
+      const isGenericDean = /\bdean'?s?\b/.test(q) && /\boffice\b/.test(q) &&
+        !/\b(ecs|engineering|business|cob|nsm|science|mathematics|arts|letters|education|hhs|ssis|cce)\b/.test(q);
+      if (isGenericDean) return { mode: "dean-chooser" };
+
+      // prefer explicit matches
+      let best = null, bestScore = 0;
+      for (const [key, meta] of Object.entries(departmentIndex)) {
+        const s = score(q, clean(key));
+        if (s > 0.7 && s > bestScore) {
+          bestScore = s;
+          best = { buildingKey: meta.buildingKey, floor: meta.floor, matchLabel: meta.display || key, hours: meta.hours, score: s };
+        }
+      }
+      if (best) return best;
+
+      // fallback fuzzy against departments list
+      for(const [bKey, cfg] of Object.entries(departments)){
+        if(!cfg) continue;
+        const candidates = [];
+        if (cfg.heading){
+          const headingText = cfg.heading.replace(/<[^>]+>/g,'');
+          candidates.push({ label: headingText, floor: null });
+        }
+        if (cfg.items){ cfg.items.forEach(name => candidates.push({ label: name, floor: null })); }
+        if (cfg.byFloor){
+          for(const [floor, arr] of Object.entries(cfg.byFloor)){
+            (arr || []).forEach(name => candidates.push({ label: name, floor }));
+          }
+        }
+        let bestLocal = null, bestLocalScore = 0;
+        for(const cand of candidates){
+          const s = score(q, clean(cand.label));
+          if (s > 0.62 && s > bestLocalScore){
+            bestLocalScore = s;
+            bestLocal = { buildingKey: bKey, floor: cand.floor, matchLabel: cand.label, score: s };
+          }
+        }
+        if (bestLocal) return bestLocal;
+      }
+      return null;
+    }
+
+    // --- Map / UI helpers ---
+    function dropMarkerAt(pos, title) {
+      if (marker) marker.setMap(null);
+      marker = new google.maps.Marker({ position: pos, map, title });
+      map.panTo(pos);
+      map.setZoom(18);
+
+      if (lastDeptContext && lastDeptContext.matchedDept) {
+        const floorText = lastDeptContext.floor ? ` — ${lastDeptContext.floor}` : "";
+        showStatus(`${lastDeptContext.matchedDept}${floorText} @ ${title}`);
+      } else {
+        showStatus(title);
+      }
+
+      openDeptPanel(title, lastDeptContext || {});
+      lastDeptContext = null;
+    }
+
+    function showStatus(msg){
+      const el = $("statusBar");
+      if (el) el.textContent = msg;
+      const sr = $("buildingInfo");
+      if (sr) sr.textContent = msg;
+    }
+
+    function metersToHuman(m){ return (m<1000) ? `${Math.round(m)} m` : `${(m/1000).toFixed(2)} km`; }
+    function distanceBetween(a,b){
+      const p1 = new google.maps.LatLng(a.lat, a.lng);
+      const p2 = new google.maps.LatLng(b.lat, b.lng);
+      return google.maps.geometry.spherical.computeDistanceBetween(p1,p2);
+    }
+
+    function saveRecent(term){
+      const t = term.trim();
+      if(!t) return;
+      const rec = JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");
+      const next = [t, ...rec.filter(x=>x.toLowerCase()!==t.toLowerCase())].slice(0,6);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      renderRecent();
+    }
+
+    function renderRecent(){
+      const rec = JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");
+      const row = $("recentRow");
+      row.innerHTML = "";
+      rec.forEach(r=>{
+        const chip = document.createElement("button");
+        chip.className="chip";
+        chip.textContent=r;
+        chip.setAttribute("aria-label", `Search ${r}`);
+        chip.addEventListener("click", ()=>{
+          $("searchInput").value = r;
+          doSearch();
+        });
+        row.appendChild(chip);
+      });
+    }
+
+    // Levenshtein + scoring
+    function levenshtein(a,b){
+      a = norm(a); b = norm(b);
+      const m = a.length, n = b.length;
+      if(!m) return n; if(!n) return m;
+      const dp = Array.from({length:n+1}, (_,j)=>j);
+      for(let i=1;i<=m;i++){
+        let prev = i-1, cur = i;
+        for(let j=1;j<=n;j++){
+          const cost = a[i-1]===b[j-1]?0:1;
+          const next = Math.min(dp[j]+1, cur+1, prev+cost);
+          prev = dp[j]; dp[j] = next; cur = next;
+        }
+        dp[0] = i;
+      }
+      return dp[n];
+    }
+    function score(query, candidate){
+      const q = norm(query), c = norm(candidate);
+      if(!q || !c) return 0;
+      if(c===q) return 1.0;
+      if(c.startsWith(q)) return 0.95;
+      if(c.includes(q)) return 0.85;
+      const d = levenshtein(q,c);
+      const maxLen = Math.max(q.length,c.length);
+      return Math.max(0, 1 - d / maxLen);
+    }
+    function rankedSuggestions(query){
+      const q = norm(query);
+      const keys = Object.keys(buildings);
+      const ranked = keys.map(k=>({k, s: score(q,k)}))
+        .filter(x=>x.s>0.5)
+        .sort((a,b)=>b.s-a.s)
+        .slice(0,8);
+      return ranked.map(x=>x.k);
+    }
+
+    // Nearby list (kept but visually hidden)
+    function listMatchesAround(pos, queryKey){
+      const list = $("resultsList");
+      if(!list) return;
+      list.innerHTML = "";
+      const base = pos || sacCenter;
+      const keys = Object.keys(buildings);
+      const q = norm(queryKey);
+      const filtered = keys.filter(k=> !q || k.includes(q))
+        .map(k=>({k, d: distanceBetween(base, buildings[k])}))
+        .sort((a,b)=>a.d-b.d)
+        .slice(0,6);
+
+      filtered.forEach(({k,d})=>{
+        const li = document.createElement("li");
+        li.className="result";
+        li.setAttribute("tabindex","0");
+        li.innerHTML = `<span>${k.replace(/\b\w/g,c=>c.toUpperCase())}</span><span class="muted">${metersToHuman(d)}</span>`;
+        li.addEventListener("click", ()=>{
+          const {lat,lng} = buildings[k];
+          dropMarkerAt({lat,lng}, k.replace(/\b\w/g,c=>c.toUpperCase()));
+          saveRecent(k);
+        });
+        li.addEventListener("keydown", (e)=>{
+          if(e.key==="Enter"||e.key===" "){ e.preventDefault(); li.click(); }
+        });
+        list.appendChild(li);
+      });
+    }
+
+    // ---------- Map ----------
+    function initMap(){
+      const appleStyle = [
+        { elementType:'geometry', stylers:[{color:'#f5f5f5'}]},
+        { elementType:'labels.icon', stylers:[{visibility:'off'}]},
+        { elementType:'labels.text.fill', stylers:[{color:'#616161'}]},
+        { elementType:'labels.text.stroke', stylers:[{color:'#f5f5f5'}]},
+        { featureType:'administrative.land_parcel', stylers:[{visibility:'off'}]},
+        { featureType:'poi', stylers:[{visibility:'off'}]},
+        { featureType:'road', elementType:'geometry', stylers:[{color:'#ffffff'}]},
+        { featureType:'road.highway', elementType:'geometry', stylers:[{color:'#dadada'}]},
+        { featureType:'transit', stylers:[{visibility:'off'}]},
+        { featureType:'water', elementType:'geometry', stylers:[{color:'#c9e6ff'}]}
+      ];
+
+      map = new google.maps.Map($("map"),{
+        center:sacCenter,
+        zoom:16,
+        styles:appleStyle,
+        mapTypeControl:false,
+        disableDefaultUI:false,
+        restriction:{
+          latLngBounds:{north:38.568,south:38.551,west:-121.435,east:-121.415},
+          strictBounds:false
+        }
+      });
+
+      const input = $("searchInput");
+      const btn = $("searchBtn");
+      const locateBtn = $("locateBtn");
+
+      // Suggestions while typing
+      let active = -1, currentItems = [];
+      input.addEventListener("input", ()=>{
+        const val = input.value;
+        currentItems = rankedSuggestions(val);
+        active = -1;
+        renderSuggestions(currentItems);
+        listMatchesAround(myLocation || sacCenter, val);
+      });
+
+      input.addEventListener("focus", ()=>{
+        if(currentItems.length) renderSuggestions(currentItems, active);
+      });
+
+      input.addEventListener("blur", ()=>{
+        setTimeout(hideSuggestions, 120);
+      });
+
+      input.addEventListener("keydown", (e)=>{
+        const len = currentItems.length;
+        if(!len) return;
+        if(e.key==="ArrowDown"){ e.preventDefault(); active = (active+1)%len; renderSuggestions(currentItems, active); }
+        else if(e.key==="ArrowUp"){ e.preventDefault(); active = (active-1+len)%len; renderSuggestions(currentItems, active); }
+        else if(e.key==="Enter"){
+          if(active>=0){ input.value = currentItems[active]; }
+          btn.click();
+        } else if(e.key==="Escape"){ hideSuggestions(); }
+      });
+
+      // Primary search action
+      btn.addEventListener("click", doSearch);
+      input.addEventListener("keydown", e=>{ if(e.key==="Enter") btn.click(); });
+
+      // Center on me
+      locateBtn.addEventListener("click", ()=>{
+        if(!navigator.geolocation){
+          showStatus("Geolocation not supported by your browser.");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos)=>{
+            myLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            dropMarkerAt(myLocation, "My location");
+            showStatus("Centered on your location.");
+            listMatchesAround(myLocation, norm(input.value));
+          },
+          (err)=>{
+            showStatus("Couldn't get your location. (Grant permission & use HTTPS/localhost.)");
+            console.warn(err);
+          },
+          { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+        );
+      });
+
+      // Initial UI
+      renderDashboard();
+      renderRecent();
+      listMatchesAround(sacCenter, "");
+    }
+
+    // ---------- Suggestions box ----------
+    function renderSuggestions(items, activeIndex=-1){
+      const box = $("suggestions");
+      box.innerHTML = "";
+      if(!items.length){ box.setAttribute("aria-expanded","false"); return; }
+      items.forEach((name,i)=>{
+        const div = document.createElement("div");
+        div.className="sugg-item";
+        div.setAttribute("role","option");
+        div.setAttribute("id",`sugg-${i}`);
+        div.setAttribute("aria-selected", i===activeIndex ? "true" : "false");
+        div.textContent = name.replace(/\b\w/g,c=>c.toUpperCase());
+        div.addEventListener("mousedown",(e)=>{
+          e.preventDefault();
+          $("searchInput").value = name;
+          doSearch();
+          hideSuggestions();
+        });
+        box.appendChild(div);
+      });
+      box.setAttribute("aria-expanded","true");
+    }
+    function hideSuggestions(){
+      const box = $("suggestions");
+      box.setAttribute("aria-expanded","false");
+      box.innerHTML="";
+    }
+
+    // ---------- Search logic (supports dept->building + dean chooser) ----------
+    function localLookupAndGo(qRaw){
+      const q = norm(qRaw);
+      if(!q){ showStatus("Type a building name to search."); return true; }
+
+      // Generic "dean's office" => open chooser
+      const genericDean = /\bdean'?s?\b.*\boffice\b/.test(q) &&
+                          !/\b(ecs|engineering|business|cob|nsm|science|mathematics|arts|letters|education|hhs|ssis|cce)\b/.test(q);
+      if (genericDean) {
+        $("deptPanelTitle").textContent = "Dean’s Offices";
+        openDeptPanel("Dean’s Offices", { mode:"dean-chooser" });
+        showStatus("Select a dean’s office from the list.");
+        saveRecent("Dean’s Office");
+        return true;
+      }
+
+      // Try building names (fuzzy)
+      const keys = Object.keys(buildings);
+      let best = null, bestScore = 0;
+      keys.forEach(k=>{
+        const s = score(q,k);
+        if(s>bestScore){ bestScore = s; best = k; }
+      });
+
+      if(best && bestScore >= 0.62){
+        const {lat,lng} = buildings[best];
+        const title = titleize(best);
+        lastDeptContext = null;
+        dropMarkerAt({lat,lng}, title);
+        saveRecent(best);
+        listMatchesAround(myLocation || sacCenter, best);
+        return true;
+      }
+
+      // Department/office reverse lookup
+      const dHit = findBuildingByDepartment(q);
+      if (dHit){
+        if (dHit.mode === "dean-chooser"){
+          $("deptPanelTitle").textContent = "Dean’s Offices";
+          openDeptPanel("Dean’s Offices", { mode:"dean-chooser" });
+          showStatus("Select a dean’s office from the list.");
+          saveRecent("Dean’s Office");
+          return true;
+        }
+
+        const { buildingKey, floor, matchLabel, hours } = dHit;
+        const coords = buildings[buildingKey];
+        if (coords){
+          const title = titleize(buildingKey);
+          lastDeptContext = { matchedDept: matchLabel, floor, hours };
+          dropMarkerAt(coords, title);
+          const extra = floor ? ` — ${floor}` : "";
+          showStatus(`${matchLabel}${extra} is in ${title}.`);
+          saveRecent(matchLabel);
+          listMatchesAround(coords, buildingKey);
+          return true;
+        } else {
+          showStatus(`We found ${matchLabel}, but don’t have a map pin for ${titleize(buildingKey)} yet.`);
+          return true;
+        }
+      }
+
+      // Not found locally; allow Places fallback
+      return false;
+    }
+
+    // ---------- Places search ----------
+    function doSearch(){
+      const input = $("searchInput");
+      const q = input.value.trim();
+      if(localLookupAndGo(q)) return;
+
+      if (!google?.maps?.places || !google.maps.places.PlacesService) {
+        showStatus("Not in local data, and Google Places isn’t available. Enable the Places API or add this to the local directory.");
+        return;
+      }
+
+      try {
+        const svc = new google.maps.places.PlacesService(map);
+        svc.textSearch(
+          { query: q + " Sacramento State", location: sacCenter, radius: 1500 },
+          (results, status) => {
+            try {
+              if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length){
+                const best = results
+                  .map(r=>({
+                    r,
+                    d2: Math.pow(r.geometry?.location?.lat?.() - sacCenter.lat,2) +
+                        Math.pow(r.geometry?.location?.lng?.() - sacCenter.lng,2)
+                  }))
+                  .filter(x => x.r?.geometry?.location)
+                  .sort((a,b)=>a.d2-b.d2)[0]?.r;
+
+                if (!best) { showStatus("No usable location found from Places."); return; }
+                lastDeptContext = null;
+                dropMarkerAt(best.geometry.location, best.name);
+                saveRecent(best.name);
+              } else {
+                showStatus("Not found in local data or Places.");
+              }
+            } catch (innerErr) {
+              console.error("Places callback error:", innerErr);
+              showStatus("We hit an error reading Places results. (Console has details.)");
+            }
+          }
+        );
+      } catch (err) {
+        console.error("Places call failed:", err);
+        showStatus("Couldn’t contact Google Places. Check that the Places API is enabled for your key.");
+      }
+    }
+
+    // Error guards
+    window.addEventListener("error", (e)=>{
+      console.error("Global error:", e.error || e.message);
+      showStatus("Oops—something went wrong. Check the browser console for details.");
+    });
+    window.addEventListener("unhandledrejection", (e)=>{
+      console.error("Unhandled promise rejection:", e.reason);
+      showStatus("A request failed unexpectedly. Check the console for details.");
+    });
+
+    // Expose initMap globally for the callback
+    window.initMap = initMap;
+  </script>
+</body>
+</html>
