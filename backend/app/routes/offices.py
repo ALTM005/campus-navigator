@@ -5,8 +5,17 @@ from ..db import get_db
 from ..models import Office, OfficeIn
 from fastapi import APIRouter, HTTPException
 from fastapi import APIRouter, HTTPException, Query
+from ..ai import embed_texts
+import numpy as np, struct
 
 router = APIRouter()
+
+def _pack(vec):
+    return struct.pack(f"{len(vec)}f", *vec)
+
+def _unpack(blob):
+    n = len(blob)//4
+    return np.array(struct.unpack(f"{n}f", blob), dtype=np.float32)
 
 @router.get("/offices", response_model=List[Office])
 def list_offices(limit: int = 200):
@@ -56,3 +65,19 @@ def search(q: str = Query(..., min_length=1), limit: int = 20):
             (q_like, q_like, q_like, q_like, limit)
         ).fetchall()
         return [dict(r) for r in rows]
+
+@router.post("/offices/reindex")
+def reindex_embeddings():
+    with get_db() as conn:
+        rows = conn.execute("SELECT id, name, building FROM offices").fetchall()
+        texts = [f"{r['name']} — {r['building']}" for r in rows]
+        embs = embed_texts(texts)
+        if not embs:
+            return {"ok": False, "reason": "AI disabled (no OPENAI_API_KEY)"}
+        for (r, v) in zip(rows, embs):
+            conn.execute(
+                "REPLACE INTO office_embeddings (office_id, vector) VALUES (?, ?)",
+                (r["id"], _pack(v))
+            )
+        conn.commit()
+    return {"ok": True, "count": len(rows)}
