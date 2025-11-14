@@ -1,0 +1,47 @@
+{
+  "Mendocino Hall": {
+    "lat": 38.562713,
+    "lng": -121.423566,
+    "source": "nominatim"
+  },
+  "Sequoia Hall": {
+    "lat": 38.562042,
+    "lng": -121.422664,
+    "source": "nominatim"
+  },
+  "River Front Center": {
+    "lat": 38.563445,
+    "lng": -121.423915,
+    "source": "nominatim"
+  },
+  "Tschannen Science Complex": {
+    "lat": 38.560633,
+    "lng": -121.420948,
+    "source": "nominatim"
+  },
+  "Hornet Bookstore": {
+    "lat": 38.559948,
+    "lng": -121.420709,
+    "source": "nominatim"
+  },
+  "Del Norte Hall": {
+    "lat": 38.563445,
+    "lng": -121.423473,
+    "source": "nominatim"
+  },
+  "Modoc Hall": {
+    "lat": 38.553155,
+    "lng": -121.419326,
+    "source": "nominatim"
+  },
+  "Napa Hall": {
+    "lat": 38.553835,
+    "lng": -121.419077,
+    "source": "nominatim"
+  },
+  "Shasta Hall": {
+    "lat": 38.564461,
+    "lng": -121.424212,
+    "source": "nominatim"
+  }
+}
